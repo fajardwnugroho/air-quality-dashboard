@@ -1,5 +1,6 @@
 library(shiny)
 library(bslib)
+library(DT)
 
 CITIES <- c("Jakarta", "Bandung", "Surabaya", "Medan", "Denpasar", "Yogyakarta", "Semarang")
 POLLUTANTS <- c("pm25", "pm10", "o3", "no2")

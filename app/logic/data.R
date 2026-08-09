@@ -13,12 +13,16 @@
 
 .parse_pg_url <- function(url) {
   u <- urltools::url_parse(url)
+  userinfo <- sub("^.*://", "", url)
+  userinfo <- sub("/.*$", "", userinfo)
+  userinfo <- sub("@.*$", "", userinfo)
+  user_parts <- strsplit(userinfo, ":", fixed = TRUE)[[1]]
   list(
     host = u$domain,
     port = if (nzchar(u$port)) as.integer(u$port) else 5432L,
     dbname = sub("^/", "", u$path),
-    user = u$username,
-    password = urltools::url_decode(u$password)
+    user = user_parts[[1]],
+    password = if (length(user_parts) > 1) urltools::url_decode(user_parts[[2]]) else ""
   )
 }
 

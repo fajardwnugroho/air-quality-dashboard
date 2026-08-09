@@ -13,4 +13,4 @@ COPY app/ /srv/shiny-server/air-quality-dashboard/
 
 EXPOSE 3838
 
-CMD ["R", "-e", "setwd('/srv/shiny-server/air-quality-dashboard'); shiny::runApp(host='0.0.0.0', port=3838, launch.browser=FALSE)"]
+CMD ["R", "-e", "port <- as.numeric(Sys.getenv('PORT', '3838')); shiny::runApp('/srv/shiny-server/air-quality-dashboard', host='0.0.0.0', port=port, launch.browser=FALSE)"]
