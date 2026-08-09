@@ -1,0 +1,27 @@
+version: 2
+
+sources:
+  - name: bronze
+    schema: bronze
+    description: "Raw OpenAQ data dumped by 01_extract_bronze.py"
+    tables:
+      - name: measurements
+        description: "Raw per-sensor measurement values from OpenAQ v3"
+        columns:
+          - name: location_id
+            description: "OpenAQ location (station) identifier"
+          - name: sensor_ids
+            description: "Comma-separated OpenAQ sensor ids"
+          - name: parameter
+            description: "Pollutant code (pm25, pm10, o3, no2)"
+          - name: value
+            description: "Measurement value in the reported unit"
+          - name: datetime_utc
+            description: "Timestamp of measurement, UTC"
+      - name: locations
+        description: "Raw location (station) metadata from OpenAQ v3"
+        columns:
+          - name: location_id
+            description: "OpenAQ location (station) identifier, primary key"
+      - name: ingestion_metadata
+        description: "Per station/city last-measured watermark for incremental pulls"

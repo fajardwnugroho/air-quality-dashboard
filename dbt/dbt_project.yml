@@ -1,0 +1,31 @@
+name: 'air_quality'
+version: '1.0.0'
+profile: 'air_quality'
+
+model-paths: ["models"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+test-paths: ["tests"]
+analysis-paths: ["analyses"]
+
+target-path: "target"
+clean-targets:
+  - "target"
+  - "dbt_packages"
+
+models:
+  air_quality:
+    +materialized: table
+    staging:
+      +materialized: view
+      +schema: silver
+    intermediate:
+      +materialized: view
+      +schema: silver
+    marts:
+      +materialized: table
+      +schema: gold
+
+seeds:
+  air_quality:
+    +schema: gold

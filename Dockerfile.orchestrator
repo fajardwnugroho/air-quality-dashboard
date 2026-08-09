@@ -1,0 +1,27 @@
+FROM node:20-alpine
+
+# Python runtime + pipeline deps (extract, dbt wrapper, sync).
+# psycopg files are avoided in favor of pure-python pg8000.
+RUN apk add --no-cache python3 py3-pip \
+    && pip install --break-system-packages --no-cache-dir \
+       requests duckdb dbt-core dbt-duckdb pg8000 pandas
+
+WORKDIR /app
+
+COPY packages/orchestrator/package*.json ./
+RUN npm install --omit=dev
+
+COPY packages/orchestrator/src/ ./src/
+COPY pipeline/ /pipeline/
+COPY dbt/ /dbt/
+COPY data/ /data/
+
+ENV SCRIPTS_ROOT=/pipeline
+ENV DBT_PROJECT_DIR=/dbt
+ENV DBT_PROFILES_DIR=/dbt
+ENV DUCKDB_PATH=/data/air_quality.duckdb
+ENV NODE_ENV=production
+
+EXPOSE 3001
+
+CMD ["node", "src/index.js"]

@@ -1,0 +1,12 @@
+Type: Shiny
+Package: airqualityapp
+Title: Indonesia Air Quality Dashboard
+Version: 0.1.0
+Authors@R: person("Fajar", "Nugroho", email = "113161338+fajardnugroho@users.noreply.github.com", role = c("aut", "cre"))
+Description: Shiny/Rhino dashboard reading the serving schema of the
+    Air Quality Intelligence Platform (OpenAQ -> DuckDB -> dbt -> Supabase).
+License: MIT
+Encoding: UTF-8
+Suggests:
+    testthat (>= 3.0.0)
+Config/testthat/edition: 3

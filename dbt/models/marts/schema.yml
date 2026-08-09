@@ -1,0 +1,62 @@
+version: 2
+
+models:
+  - name: dim_station
+    description: "Dimension of monitored stations"
+    columns:
+      - name: station_id
+        tests:
+          - not_null
+          - unique
+  - name: dim_location
+    description: "Canonical list of the 7 monitored Indonesian cities"
+    columns:
+      - name: city
+        tests:
+          - not_null
+          - unique
+  - name: fct_air_quality_measurements
+    description: "Hourly measurement fact with station + city context"
+    columns:
+      - name: station_id
+        tests:
+          - not_null
+      - name: pollutant
+        tests:
+          - not_null
+      - name: measured_at_utc
+        tests:
+          - not_null
+  - name: mart_air_quality_current
+    description: "Latest reading per city + pollutant"
+    columns:
+      - name: city
+        tests:
+          - not_null
+      - name: pollutant
+        tests:
+          - not_null
+  - name: mart_air_quality_daily
+    description: "Daily averages per city + pollutant"
+    columns:
+      - name: city
+        tests:
+          - not_null
+      - name: pollutant
+        tests:
+          - not_null
+  - name: mart_station_comparison
+    description: "Latest reading per station + pollutant"
+    columns:
+      - name: station_id
+        tests:
+          - not_null
+  - name: mart_pollution_anomalies
+    description: "Daily z-score anomalies vs rolling baseline"
+    columns:
+      - name: city
+        tests:
+          - not_null
+      - name: pollutant
+        tests:
+          - not_null

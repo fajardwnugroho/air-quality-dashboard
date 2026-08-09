@@ -1,0 +1,26 @@
+# Local orchestration reference.
+# Note: no local Postgres — Supabase serves both schemas in every environment.
+services:
+  orchestrator:
+    build:
+      context: .
+      dockerfile: Dockerfile.orchestrator
+    env_file: .env.local
+    ports:
+      - "3001:3001"
+
+  dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile.dashboard
+    env_file: .env.local
+    ports:
+      - "3000:3000"
+
+  air-quality-app:
+    build:
+      context: .
+      dockerfile: Dockerfile.air-quality-app
+    env_file: .env.local
+    ports:
+      - "3838:3838"

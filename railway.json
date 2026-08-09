@@ -1,0 +1,77 @@
+{
+  "build": null,
+  "projects": {
+    "air-quality-dashboard": {
+      "id": "",
+      "name": "air-quality-dashboard",
+      "services": [
+        {
+          "id": "",
+          "name": "orchestrator",
+          "source": {
+            "image": "",
+            "repo": "",
+            "branch": "main"
+          },
+          "buildCommand": null,
+          "buildArgs": {
+            "DOCKERFILE": "Dockerfile.orchestrator"
+          },
+          "startCommand": null,
+          "healthcheckPath": "/health",
+          "healthcheckTimeout": 100,
+          "restartPolicy": "always",
+          "port": 3001,
+          "volumes": [],
+          "variables": []
+        },
+        {
+          "id": "",
+          "name": "dashboard",
+          "source": {
+            "image": "",
+            "repo": "",
+            "branch": "main"
+          },
+          "buildCommand": null,
+          "buildArgs": {
+            "DOCKERFILE": "Dockerfile.dashboard"
+          },
+          "startCommand": null,
+          "healthcheckPath": "/",
+          "healthcheckTimeout": 100,
+          "restartPolicy": "always",
+          "port": 3000,
+          "volumes": [],
+          "variables": []
+        },
+        {
+          "id": "",
+          "name": "air-quality-app",
+          "source": {
+            "image": "",
+            "repo": "",
+            "branch": "main"
+          },
+          "buildCommand": null,
+          "buildArgs": {
+            "DOCKERFILE": "Dockerfile.air-quality-app"
+          },
+          "startCommand": null,
+          "healthcheckPath": null,
+          "healthcheckTimeout": 100,
+          "restartPolicy": "always",
+          "port": 3838,
+          "volumes": [],
+          "variables": []
+        }
+      ],
+      "plugins": [],
+      "environments": {
+        "production": {
+          "variables": {}
+        }
+      }
+    }
+  }
+}

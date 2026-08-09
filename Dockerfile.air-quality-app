@@ -1,0 +1,16 @@
+FROM rocker/shiny:4.4.1
+
+# R system deps frequently needed by tidyverse / odbc
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        libpq-dev libssl-dev libcurl4-openssl-dev libxml2-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# App dependencies
+RUN R -e "install.packages(c('bslib','dplyr','ggplot2','DT','shiny','RPostgres','duckdb','urltools','testthat'), repos='https://cloud.r-project.org/', quiet=TRUE)"
+
+WORKDIR /srv/shiny-server/air-quality-dashboard
+COPY app/ /srv/shiny-server/air-quality-dashboard/
+
+EXPOSE 3838
+
+CMD ["R", "-e", "setwd('/srv/shiny-server/air-quality-dashboard'); shiny::runApp(host='0.0.0.0', port=3838, launch.browser=FALSE)"]

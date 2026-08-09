@@ -1,0 +1,19 @@
+{
+  "name": "air-quality-dashboard",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "packages/orchestrator",
+    "packages/dashboard"
+  ],
+  "scripts": {
+    "dev:orchestrator": "npm run dev --workspace=packages/orchestrator",
+    "dev:dashboard": "npm run dev --workspace=packages/dashboard",
+    "build:dashboard": "npm run build --workspace=packages/dashboard",
+    "lint:dashboard": "npm run lint --workspace=packages/dashboard",
+    "test:aql": "Rscript -e \"source('app/logic/aqi.R'); testthat::test_file('app/tests/testthat/test-aqi.R')\""
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

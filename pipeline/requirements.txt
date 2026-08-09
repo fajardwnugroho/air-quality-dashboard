@@ -1,0 +1,7 @@
+# Python deps for the Air Quality pipeline (installed in the orchestrator image)
+requests>=2.32.0
+duckdb>=1.0.0
+dbt-core>=1.8.0
+dbt-duckdb>=1.8.0
+pg8000>=1.30.0
+pandas>=2.0.0

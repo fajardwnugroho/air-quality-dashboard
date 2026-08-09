@@ -1,0 +1,53 @@
+# Node
+node_modules/
+.next/
+*.tsbuildinfo
+next-env.d.ts
+.vercel
+
+# Environment / secrets
+.env
+.env.local
+.env.*
+!.env.example
+packages/orchestrator/.env
+*.pem
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# R / Rhino
+.Rhistory
+.RData
+.Rproj.user
+renv/library/
+renv/.env
+
+# Data + DuckDB
+data/*.duckdb
+data/*.duckdb.wal
+
+# dbt
+dbt/profiles.yml
+dbt/target/
+dbt/logs/
+dbt/dbt_packages/
+dbt/packages/
+
+# Databases
+*.db
+*.db-wal
+*.db-shm
+
+# Supabase
+supabase/.temp/
+
+# OS / misc
+.DS_Store
+.slack-events/
+.playwright-mcp/
+slack-events/.last_agent_ts
+slack-events/.last_processed_ts
