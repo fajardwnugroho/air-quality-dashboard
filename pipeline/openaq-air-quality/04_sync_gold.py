@@ -68,6 +68,19 @@ def parse_db_url(url):
 
 def ensure_schema(con, schema="serving"):
     con.run(f'CREATE SCHEMA IF NOT EXISTS "{schema}"')
+    con.run(f'GRANT USAGE ON SCHEMA "{schema}" TO anon, authenticated')
+
+
+def lock_read_only(con, schema, table):
+    """Enable RLS with a read-only SELECT policy so anon/authenticated can
+    read but never write the dynamically-created serving tables."""
+    con.run(f'ALTER TABLE "{schema}"."{table}" ENABLE ROW LEVEL SECURITY')
+    con.run(f'ALTER TABLE "{schema}"."{table}" FORCE ROW LEVEL SECURITY')
+    con.run(f'DROP POLICY IF EXISTS serving_read_only ON "{schema}"."{table}"')
+    con.run(
+        f'CREATE POLICY serving_read_only ON "{schema}"."{table}" '
+        "FOR SELECT TO anon, authenticated USING (true)"
+    )
 
 
 def upsert_table(con, schema, table, df, key_cols):
@@ -106,6 +119,7 @@ def upsert_table(con, schema, table, df, key_cols):
     ]
     create_sql += ",\n".join(types + constraints) + "\n)"
     con.run(create_sql)
+    lock_read_only(con, schema, table)
 
     set_clause = ", ".join(
         f'"{c}" = EXCLUDED."{c}"' for c in cols if c not in key_cols
