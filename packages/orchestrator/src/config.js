@@ -1,9 +1,16 @@
 const path = require('path');
+const fs = require('fs');
 
-const scriptsRoot = process.env.SCRIPTS_ROOT ||
-  (process.env.NODE_ENV === 'production'
+const envScriptsRoot = process.env.SCRIPTS_ROOT;
+const defaultScriptsRoot =
+  process.env.NODE_ENV === 'production'
     ? '/pipeline'
-    : path.resolve(__dirname, '..', '..', '..', 'pipeline'));
+    : path.resolve(__dirname, '..', '..', '..', 'pipeline');
+
+const scriptsRoot =
+  envScriptsRoot && fs.existsSync(envScriptsRoot)
+    ? envScriptsRoot
+    : defaultScriptsRoot;
 
 const pipelines = [
   {

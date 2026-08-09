@@ -22,12 +22,13 @@ function getCommand(language, scriptPath) {
 function runScript(scriptPath, language, env) {
   return new Promise((resolve) => {
     const { cmd, args } = getCommand(language, scriptPath);
+    const spawnEnv = {
+      ...process.env,
+      ...env,
+      PATH: `${process.env.PATH || ''}:/usr/local/bin:/opt/homebrew/bin:/Library/Frameworks/Python.framework/Versions/3.13/bin`,
+    };
     const child = spawn(cmd, args, {
-      env: {
-        ...process.env,
-        ...env,
-        PATH: `${process.env.PATH || ''}:/usr/local/bin:/opt/homebrew/bin:/Library/Frameworks/Python.framework/Versions/3.13/bin`,
-      },
+      env: spawnEnv,
       cwd: path.dirname(scriptPath),
     });
 

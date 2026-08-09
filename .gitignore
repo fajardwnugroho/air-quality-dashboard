@@ -29,6 +29,8 @@ renv/.env
 # Data + DuckDB
 data/*.duckdb
 data/*.duckdb.wal
+pipeline/*/data/*.duckdb
+pipeline/*/data/*.duckdb.wal
 
 # dbt
 dbt/profiles.yml
