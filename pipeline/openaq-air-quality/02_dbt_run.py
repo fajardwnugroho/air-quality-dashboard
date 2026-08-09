@@ -31,7 +31,7 @@ def ensure_profiles(profiles_dir: Path, duckdb_path: Path) -> Path:
   outputs:
     duckdb:
       type: duckdb
-      path: {duckdb_path}
+      path: {duckdb_path.resolve()}
       threads: 4
   target: duckdb
 """,

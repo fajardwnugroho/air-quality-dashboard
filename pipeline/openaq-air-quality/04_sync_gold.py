@@ -110,16 +110,19 @@ def upsert_table(con, schema, table, df, key_cols):
     set_clause = ", ".join(
         f'"{c}" = EXCLUDED."{c}"' for c in cols if c not in key_cols
     )
+    placeholders = ", ".join(f"${i}" for i in range(1, len(cols) + 1))
     insert_sql = f"""
         INSERT INTO "{schema}"."{table}" ({col_list})
-        VALUES ({", ".join(["%s"] * len(cols))})
+        VALUES ({placeholders})
         ON CONFLICT ({key_list}) DO UPDATE SET {set_clause}
     """
 
     rows = list(df.itertuples(index=False, name=None))
     con.run("BEGIN")
     try:
-        con.run(insert_sql, rows)
+        for row in rows:
+            params = {f"p{i}": v for i, v in enumerate(row)}
+            con.run(insert_sql, **params)
         con.run("COMMIT")
         print(f"  [sync] {table}: upserted {len(rows)} rows", flush=True)
     except Exception:
@@ -143,9 +146,9 @@ def main():
         ensure_schema(con)
 
         for table, key_cols in MART_KEYS.items():
-            # DuckDB marts may live under schema 'gold' (custom) or 'main'.
+            # DuckDB marts live under schema 'gold' (custom) or 'main'.
             df = None
-            for schema in ("gold", "main", ""):
+            for schema in ("gold", "main_gold", "main", ""):
                 qualified = f"{schema}.{table}" if schema else table
                 exists = ddb.execute(
                     f"SELECT count(*) FROM information_schema.tables "
@@ -153,7 +156,10 @@ def main():
                     [table, schema or "main"],
                 ).fetchone()
                 if exists and exists[0] > 0:
-                    df = ddb.execute(f'SELECT * FROM "{qualified}"').df()
+                    if schema:
+                        df = ddb.execute(f'SELECT * FROM "{schema}"."{table}"').df()
+                    else:
+                        df = ddb.execute(f'SELECT * FROM "{table}"').df()
                     break
             if df is None:
                 print(f"  [sync] {table}: not found in DuckDB, skipping", flush=True)

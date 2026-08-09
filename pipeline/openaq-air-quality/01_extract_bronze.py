@@ -149,6 +149,14 @@ def ensure_schema(con):
         )
     """)
     con.execute("""
+        CREATE TABLE IF NOT EXISTS bronze.sensors (
+            sensor_id     BIGINT PRIMARY KEY,
+            location_id   BIGINT,
+            parameter     VARCHAR,
+            unit          VARCHAR
+        )
+    """)
+    con.execute("""
         CREATE TABLE IF NOT EXISTS bronze.measurements (
             location_id      BIGINT,
             sensor_ids       VARCHAR,
@@ -173,35 +181,90 @@ def ensure_schema(con):
     """)
 
 
+# Best-effort city derivation from a location name. OpenAQ v3 does not expose
+# a clean per-city filter on /locations, so we map known station name tokens
+# onto our target cities and drop everything else.
+CITY_NAME_TOKENS = {
+    "Jakarta": ["jakarta", "cilandek", "cipete", "krukut", "marunda", "margonda", "depok", "d'mall", "bogor"],
+    "Bandung": ["bandung", "pasteur", "itb"],
+    "Surabaya": ["surabaya"],
+    "Medan": ["medan", "usu", "palembang"],
+    "Denpasar": ["denpasar", "bali", "ubud", "kuwum", "balangan"],
+    "Yogyakarta": ["yogyakarta", "sleman", "wedomartani", "qoryah"],
+    "Semarang": ["semarang"],
+}
+
+
+def city_from_name(name, locality=""):
+    name_l = (name or "").lower()
+    for city, tokens in CITY_NAME_TOKENS.items():
+        if any(t in name_l for t in tokens):
+            return city
+    return None
+
+
 def discover_locations(session, con, limiter):
     con.execute("DELETE FROM bronze.locations")
-    for city in CITIES:
-        params = {"country": COUNTRY, "city": city, "parameters": ",".join(PARAMETERS)}
-        found = 0
-        for batch in paginated(session, "/locations", params, limiter, page_size=100):
-            for loc in batch:
-                coords = loc.get("coordinates") or {}
-                con.execute(
+    stats = {c: 0 for c in CITIES}
+    params = {"countries_id": "1"}  # numeric country id for Indonesia
+    for batch in paginated(session, "/locations", params, limiter, page_size=100):
+        for loc in batch:
+            coords = loc.get("coordinates") or {}
+            country_obj = loc.get("country") or {}
+            sensors = loc.get("sensors") or []
+            country_code = country_obj.get("code") if isinstance(country_obj, dict) else None
+            if country_code and country_code.upper() != COUNTRY:
+                continue
+            city = city_from_name(loc.get("name"), loc.get("locality"))
+            if city is None:
+                continue
+            sensor_ids = [s.get("id") for s in sensors if s.get("id")]
+            sensor_params = [
+                ((s.get("parameter") or {}).get("name"), (s.get("parameter") or {}).get("units"))
+                for s in sensors
+                if (s.get("parameter") or {}).get("name")
+            ]
+            con.execute(
+                """
+                INSERT INTO bronze.locations
+                    (location_id, city, locality, name, country, latitude,
+                     longitude, sensors_count, parameters)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                [
+                    loc["id"],
+                    city,
+                    loc.get("locality"),
+                    loc.get("name"),
+                    country_code,
+                    coords.get("latitude"),
+                    coords.get("longitude"),
+                    len(sensor_ids),
+                    json.dumps(sensor_params),
+                ],
+            )
+            sensor_rows = [
+                [
+                    s.get("id"),
+                    loc["id"],
+                    (s.get("parameter") or {}).get("name"),
+                    (s.get("parameter") or {}).get("units"),
+                ]
+                for s in sensors
+                if s.get("id") and (s.get("parameter") or {}).get("name")
+            ]
+            if sensor_rows:
+                con.executemany(
                     """
-                    INSERT INTO bronze.locations
-                        (location_id, city, locality, name, country, latitude,
-                         longitude, sensors_count, parameters)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    INSERT INTO bronze.sensors (sensor_id, location_id, parameter, unit)
+                    VALUES (?, ?, ?, ?)
+                    ON CONFLICT (sensor_id) DO NOTHING
                     """,
-                    [
-                        loc["id"],
-                        city,
-                        loc.get("locality"),
-                        loc.get("name"),
-                        loc.get("country"),
-                        coords.get("latitude"),
-                        coords.get("longitude"),
-                        len(loc.get("sensors", []) or []),
-                        json.dumps([p.get("name") for p in (loc.get("parameters") or [])]),
-                    ],
+                    sensor_rows,
                 )
-                found += 1
-        print(f"  {city}: {found} locations", flush=True)
+            stats[city] = stats.get(city, 0) + 1
+    for city in CITIES:
+        print(f"  {city}: {stats.get(city, 0)} locations", flush=True)
 
 
 def load_measurements(session, con, limiter, run_id):
@@ -210,67 +273,76 @@ def load_measurements(session, con, limiter, run_id):
     ).fetchall()
 
     for location_id, city in locations:
-        row = con.execute(
-            "SELECT last_measurement_utc FROM bronze.ingestion_metadata WHERE key = ?",
-            [f"{city}:{location_id}"],
-        ).fetchone()
+        sensors = con.execute(
+            "SELECT sensor_id, parameter FROM bronze.sensors WHERE location_id = ?",
+            [location_id],
+        ).fetchall()
 
-        if row and row[0]:
-            datetime_from = (row[0] - timedelta(seconds=1)).strftime(TIME_FORMAT)
-        else:
-            datetime_from = (datetime.now(timezone.utc) - timedelta(days=BACKFILL_DAYS)).strftime(TIME_FORMAT)
+        for sensor_id, parameter in sensors:
+            if parameter not in PARAMETERS:
+                continue
+            row = con.execute(
+                "SELECT last_measurement_utc FROM bronze.ingestion_metadata WHERE key = ?",
+                [f"{city}:{location_id}:{parameter}"],
+            ).fetchone()
 
-        params = {
-            "location_id": location_id,
-            "parameters": ",".join(PARAMETERS),
-            "datetime_from": datetime_from,
-            "limit": 1000,
-        }
+            if row and row[0]:
+                datetime_from = (row[0] - timedelta(seconds=1)).strftime(TIME_FORMAT)
+            else:
+                datetime_from = (datetime.now(timezone.utc) - timedelta(days=BACKFILL_DAYS)).strftime(TIME_FORMAT)
 
-        inserted = 0
-        last_seen = None
-        for batch in paginated(session, "/measurements", params, limiter):
-            rows_needed = True
-            for m in batch:
-                value = m.get("value")
-                dt_utc = to_utc_iso((m.get("datetime") or {}).get("utc"))
-                if value is None or not dt_utc:
-                    continue
-                con.execute(
-                    """
-                    INSERT INTO bronze.measurements
-                        (location_id, sensor_ids, parameter, unit, value,
-                         datetime_utc, datetime_local, ingest_run_id)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                    ON CONFLICT (location_id, sensor_ids, parameter, datetime_utc)
-                    DO NOTHING
-                    """,
-                    [
-                        location_id,
-                        ",".join(str(s) for s in (m.get("sensors_id") or [])),
-                        (m.get("parameter") or {}).get("name", m.get("parameter")),
-                        (m.get("parameter") or {}).get("units", m.get("unit")),
-                        value,
-                        dt_utc,
-                        to_utc_iso((m.get("datetime") or {}).get("local")),
-                        run_id,
-                    ],
-                )
-                inserted += 1
-                if last_seen is None or dt_utc > last_seen:
-                    last_seen = dt_utc
+            params = {
+                "datetime_from": datetime_from,
+                "limit": 1000,
+            }
 
-        con.execute(
-            """
-            INSERT INTO bronze.ingestion_metadata
-                (key, city, location_id, last_measurement_utc)
-            VALUES (?, ?, ?, ?)
-            ON CONFLICT (key) DO UPDATE SET
-                last_measurement_utc = excluded.last_measurement_utc
-            """,
-            [f"{city}:{location_id}", city, location_id, last_seen or datetime_from],
-        )
-        print(f"  {city}/{location_id}: +{inserted} measurements", flush=True)
+            inserted = 0
+            last_seen = None
+            for batch in paginated(session, f"/sensors/{sensor_id}/measurements", params, limiter):
+                for m in batch:
+                    value = m.get("value")
+                    period = m.get("period") or {}
+                    dt_from = period.get("datetimeFrom") or {}
+                    dt_utc = to_utc_iso(dt_from.get("utc"))
+                    if value is None or not dt_utc:
+                        continue
+                    if (m.get("parameter") or {}).get("name", m.get("parameter")) != parameter:
+                        continue
+                    con.execute(
+                        """
+                        INSERT INTO bronze.measurements
+                            (location_id, sensor_ids, parameter, unit, value,
+                             datetime_utc, datetime_local, ingest_run_id)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                        ON CONFLICT (location_id, sensor_ids, parameter, datetime_utc)
+                        DO NOTHING
+                        """,
+                        [
+                            location_id,
+                            str(sensor_id),
+                            parameter,
+                            (m.get("parameter") or {}).get("units", m.get("unit")),
+                            value,
+                            dt_utc,
+                            to_utc_iso((dt_from.get("local")) or dt_utc),
+                            run_id,
+                        ],
+                    )
+                    inserted += 1
+                    if last_seen is None or dt_utc > last_seen:
+                        last_seen = dt_utc
+
+            con.execute(
+                """
+                INSERT INTO bronze.ingestion_metadata
+                    (key, city, location_id, last_measurement_utc)
+                VALUES (?, ?, ?, ?)
+                ON CONFLICT (key) DO UPDATE SET
+                    last_measurement_utc = excluded.last_measurement_utc
+                """,
+                [f"{city}:{location_id}:{parameter}", city, location_id, last_seen or datetime_from],
+            )
+            print(f"  {city}/{location_id}/{parameter}: +{inserted} measurements", flush=True)
 
 
 def main():

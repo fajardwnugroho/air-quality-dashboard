@@ -36,6 +36,7 @@ dbt/target/
 dbt/logs/
 dbt/dbt_packages/
 dbt/packages/
+dbt/.user.yml
 
 # Databases
 *.db
