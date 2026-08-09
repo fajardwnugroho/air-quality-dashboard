@@ -2,7 +2,7 @@
   "build": null,
   "projects": {
     "air-quality-dashboard": {
-      "id": "",
+      "id": "fc1cdcce-9515-4405-83c3-026e343e29c7",
       "name": "air-quality-dashboard",
       "services": [
         {
@@ -46,7 +46,7 @@
           "variables": []
         },
         {
-          "id": "",
+          "id": "1c28fb69-ff8c-4687-9949-eb36427474a2",
           "name": "air-quality-app",
           "source": {
             "image": "",
