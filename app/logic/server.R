@@ -6,6 +6,14 @@ library(DT)
 source(file.path("logic", "data.R"), local = TRUE)
 source(file.path("logic", "aqi.R"), local = TRUE)
 
+# ---- helpers -------------------------------------------------------------
+fmt_age <- function(mins) {
+  if (!is.finite(mins)) return("unknown")
+  if (mins < 1) return("< 1 min")
+  if (mins < 60) return(sprintf("%.0f min", mins))
+  sprintf("%.1f hrs", mins / 60)
+}
+
 server <- function(input, output, session) {
   cfg <- .get_db_url()
   con <- reactiveVal(NULL)
@@ -197,12 +205,4 @@ server <- function(input, output, session) {
     df$date_day <- as.character(df$date_day)
     datatable(df, options = list(pageLength = 25, scrollX = TRUE), rownames = FALSE)
   })
-}
-
-# ---- helpers -------------------------------------------------------------
-fmt_age <- function(mins) {
-  if (!is.finite(mins)) return("unknown")
-  if (mins < 1) return("< 1 min")
-  if (mins < 60) return(sprintf("%.0f min", mins))
-  sprintf("%.1f hrs", mins / 60)
 }
