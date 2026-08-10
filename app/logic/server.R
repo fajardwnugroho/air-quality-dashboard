@@ -9,7 +9,7 @@ source(file.path("logic", "aqi.R"), local = TRUE)
 server <- function(input, output, session) {
   cfg <- .get_db_url()
   con <- reactiveVal(NULL)
-  onStop(function() if (!is.null(con())) DBI::dbDisconnect(con()))
+  onStop(function() if (!is.null(isolate(con()))) DBI::dbDisconnect(isolate(con())))
 
   observe({
     c <- NULL
