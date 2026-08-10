@@ -1,0 +1,81 @@
+name: Refresh Air Quality Pipeline
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: air-quality-refresh
+  cancel-in-progress: false
+
+jobs:
+  run-pipeline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install pipeline deps
+        run: |
+          pip install --quiet requests duckdb pandas pg8000 dbt-core dbt-duckdb
+
+      - name: Restore DuckDB warehouse
+        id: duckdb-cache
+        uses: actions/cache@v4
+        with:
+          path: data/air_quality.duckdb
+          key: air-quality-duckdb
+
+      - name: Write dbt profiles
+        run: |
+          cat > dbt/profiles.yml <<EOF
+          air_quality:
+            outputs:
+              duckdb:
+                type: duckdb
+                path: ${PWD}/data/air_quality.duckdb
+                threads: 4
+            target: duckdb
+          EOF
+
+      - name: Extract bronze (OpenAQ)
+        env:
+          OPENAQ_API_KEY: ${{ secrets.OPENAQ_API_KEY }}
+          OPENAQ_BASE_URL: ${{ vars.OPENAQ_BASE_URL }}
+          OPENAQ_COUNTRY: ID
+          OPENAQ_CITIES: ${{ vars.OPENAQ_CITIES }}
+          OPENAQ_PARAMETERS: ${{ vars.OPENAQ_PARAMETERS }}
+          OPENAQ_BACKFILL_DAYS: ${{ vars.OPENAQ_BACKFILL_DAYS }}
+          DUCKDB_PATH: data/air_quality.duckdb
+        run: python pipeline/openaq-air-quality/01_extract_bronze.py
+
+      - name: dbt run
+        env:
+          DBT_PROJECT_DIR: dbt
+          DBT_PROFILES_DIR: dbt
+          DUCKDB_PATH: data/air_quality.duckdb
+        run: dbt run --project-dir dbt --profiles-dir dbt
+
+      - name: dbt test
+        env:
+          DBT_PROJECT_DIR: dbt
+          DBT_PROFILES_DIR: dbt
+          DUCKDB_PATH: data/air_quality.duckdb
+        run: dbt test --project-dir dbt --profiles-dir dbt
+
+      - name: Sync gold to Supabase serving
+        env:
+          CLIENT_DB_URL: ${{ secrets.CLIENT_DB_URL }}
+          DUCKDB_PATH: data/air_quality.duckdb
+        run: python pipeline/openaq-air-quality/04_sync_gold.py

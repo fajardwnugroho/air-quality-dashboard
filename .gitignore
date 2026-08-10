@@ -23,8 +23,12 @@ venv/
 .Rhistory
 .RData
 .Rproj.user
-renv/library/
-renv/.env
+.Rprofile
+renv/
+renv.lock
+rhino.yml
+config.yml
+dependencies.R
 
 # Data + DuckDB
 data/*.duckdb

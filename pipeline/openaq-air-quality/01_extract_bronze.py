@@ -185,10 +185,10 @@ def ensure_schema(con):
 # a clean per-city filter on /locations, so we map known station name tokens
 # onto our target cities and drop everything else.
 CITY_NAME_TOKENS = {
-    "Jakarta": ["jakarta", "cilandek", "cipete", "krukut", "marunda", "margonda", "depok", "d'mall", "bogor"],
+    "Jakarta": ["jakarta", "cilandek", "cipete", "krukut", "marunda"],
     "Bandung": ["bandung", "pasteur", "itb"],
     "Surabaya": ["surabaya"],
-    "Medan": ["medan", "usu", "palembang"],
+    "Medan": ["medan", "usu"],
     "Denpasar": ["denpasar", "bali", "ubud", "kuwum", "balangan"],
     "Yogyakarta": ["yogyakarta", "sleman", "wedomartani", "qoryah"],
     "Semarang": ["semarang"],
