@@ -1,8 +1,6 @@
 name: Refresh Air Quality Pipeline
 
 on:
-  schedule:
-    - cron: "*/15 * * * *"
   workflow_dispatch:
 
 permissions:
